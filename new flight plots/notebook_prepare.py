@@ -254,43 +254,6 @@ def bin_latitude_data(df,avg_method,min_method,max_method,lat_bin, m_flag) :
 
     return results
 
-    # # Create lists to hold the processed data.
-    # binned_lat = []
-    # m_avg = []
-    # m_min = []
-    # m_max = []
-    # a_avg = []
-    # a_min = []
-    # a_max = []
-
-    # # Loop over each bin and calculate the average and range data.
-    # start = int(min_lat*10) / 10
-    # end_lat = int((max_lat+lat_bin)*10) / 10
-    # while start < max_lat :
-    #     end = start + lat_bin
-    #     mid = (start + end) / 2
-    #     binned_lat.append(mid)
-    #     temp_model = []
-    #     temp_aircraft = []
-    #     for x in range(len(lat_data)) :
-    #         if lat_data[x] >= start :
-    #             if lat_data[x] < end :
-    #                 temp_model.append(model_data[x])
-    #                 temp_aircraft.append(aircraft_data[x])
-    #     if avg_method == 'mean' :
-    #         a_avg.append(np.nanmean(temp_aircraft))
-    #         m_avg.append(np.nanmean(temp_model))
-    #     if avg_method == 'median' :
-    #         a_avg.append(np.nanmedian(temp_aircraft))
-    #         m_avg.append(np.nanmedian(temp_model))
-    #     a_min.append(np.nanpercentile(temp_aircraft,min_method*100))
-    #     a_max.append(np.nanpercentile(temp_aircraft,max_method*100))
-    #     m_min.append(np.nanpercentile(temp_model,min_method*100))
-    #     m_max.append(np.nanpercentile(temp_model,max_method*100))
-    #     start += lat_bin
-
-    # return binned_lat, a_min, a_avg, a_max, m_min, m_avg, m_max
-
 def bin_longitude_data(df,avg_method,min_method,max_method,lon_bin, m_flag) :
 
     """
@@ -311,44 +274,6 @@ def bin_longitude_data(df,avg_method,min_method,max_method,lon_bin, m_flag) :
     results = bin_loop(df, lon_data, avg_method, min_method, max_method, start, max_lon, lon_bin, m_flag)
 
     return results
-    # # Create lists to hold the processed data.
-    # binned_lon = []
-    # m_avg = []
-    # m_min = []
-    # m_max = []
-    # a_avg = []
-    # a_min = []
-    # a_max = []
-
-    # # Loop over each bin and calculate the average and range data.
-    # if min_lon > 0 :
-    #     start = int(min_lon*10) / 10
-    # else :
-    #     start = int((min_lon-lon_bin)*10) / 10
-    # while start < max_lon :
-    #     end = start + lon_bin
-    #     mid = (start + end) / 2
-    #     binned_lon.append(mid)
-    #     temp_model = []
-    #     temp_aircraft = []
-    #     for x in range(len(lon_data)) :
-    #         if lon_data[x] >= start :
-    #             if lon_data[x] < end :
-    #                 temp_model.append(model_data[x])
-    #                 temp_aircraft.append(aircraft_data[x])
-    #     if avg_method == 'mean' :
-    #         a_avg.append(np.nanmean(temp_aircraft))
-    #         m_avg.append(np.nanmean(temp_model))
-    #     if avg_method == 'median' :
-    #         a_avg.append(np.nanmedian(temp_aircraft))
-    #         m_avg.append(np.nanmedian(temp_model))
-    #     a_min.append(np.nanpercentile(temp_aircraft,min_method*100))
-    #     a_max.append(np.nanpercentile(temp_aircraft,max_method*100))
-    #     m_min.append(np.nanpercentile(temp_model,min_method*100))
-    #     m_max.append(np.nanpercentile(temp_model,max_method*100))
-    #     start += lon_bin
-
-    # return binned_lon, a_min, a_avg, a_max, m_min, m_avg, m_max
 
 def read_data_values(df, m_flag) :
 
@@ -357,18 +282,18 @@ def read_data_values(df, m_flag) :
     """
     values = {}
 
-    values['a_min'] = df['Aircraft_Min'][:]#needed?
+    values['a_min'] = df['Aircraft_Min'][:]
     values['a_avg'] = df['Aircraft_Avg'][:]
-    values['a_max'] = df['Aircraft_Max'][:] #needed?
+    values['a_max'] = df['Aircraft_Max'][:]
 
     if(m_flag):
-        values['m_min'] = df['Model_Min'][:]#needed?
+        values['m_min'] = df['Model_Min'][:]
         values['m_avg'] = df['Model_Avg'][:]
-        values['m_max'] = df['Model_Max'][:]#needed?
+        values['m_max'] = df['Model_Max'][:]
 
-        values['bl_min'] = df['Boundary_Layer_Height_Min'][:]#needed?
-        values['bl_avg'] = df['Boundary_Layer_Height_Avg'][:]#needed?
-        values['bl_max'] = df['Boundary_Layer_Height_Max'][:]#needed?
+        values['bl_min'] = df['Boundary_Layer_Height_Min'][:]
+        values['bl_avg'] = df['Boundary_Layer_Height_Avg'][:]
+        values['bl_max'] = df['Boundary_Layer_Height_Max'][:]
 
     return values
 
@@ -415,34 +340,35 @@ def read_cross_section(datadir,datafile,column_key,unit_conv,time_filter_flag,st
 
     f = Dataset(datadir+datafile,mode='r',format='NETCDF4')
 
-    column_time = pd.to_datetime(f['time'][:],unit='h')
-    column_alt  = f['level_height'][:]
-    column_data = f[column_key][:,:].T
-    column_data = column_data * unit_conv
+    column = {}
+    column['time'] = pd.to_datetime(f['time'][:],unit='h')
+    column['alt']  = f['level_height'][:]
+    column['data'] = f[column_key][:,:].T
+    column['data'] = column['data'] * unit_conv
 
     if time_filter_flag == True :
         start_datetime = pd.to_datetime(datetime.datetime(int(flight_date[0:4]),int(flight_date[4:6]),int(flight_date[6:8]),int(start_time[0:2]),int(start_time[3:5]),int(start_time[6:8])))
         end_datetime   = pd.to_datetime(datetime.datetime(int(flight_date[0:4]),int(flight_date[4:6]),int(flight_date[6:8]),int(end_time[0:2]),int(end_time[3:5]),int(end_time[6:8])))
         start_index = 'None'
         end_index   = 'None'
-        for x in range(len(column_time)-1) :
-            if column_time[x] <= start_datetime and column_time[x+1] > start_datetime :
+        for x in range(len(column['time'])-1) :
+            if column['time'][x] <= start_datetime and column['time'][x+1] > start_datetime :
                 start_index = x
-            if column_time[x] <= end_datetime and column_time[x+1] > end_datetime :
+            if column['time'][x] <= end_datetime and column['time'][x+1] > end_datetime :
                 end_index = x
         if start_index != 'None' and end_index != 'None' :
-            column_time = column_time[start_index:end_index+1]
-            column_data = column_data[:,start_index:end_index+1]
+            column['time'] = column['time'][start_index:end_index+1]
+            column['data'] = column['data'][:,start_index:end_index+1]
         elif start_index != 'None' and end_index == 'None' :
-            if end_datetime > column_time[-1] :
-                column_time = column_time[start_index:]
-                column_data = column_data[:,start_index:]
+            if end_datetime > column['time'][-1] :
+                column['time'] = column['time'][start_index:]
+                column['data'] = column['data'][:,start_index:]
             else :
                 print('Error with end time index')
         else :
             print('Error with start time index')
 
-    return column_time, column_alt, column_data
+    return column
 
 def setup_figure() :
 
@@ -529,6 +455,9 @@ def setup_notebook(flight_number, m_flag) :
 
     # Extract the flight information from the dictionary.
     flight_dict = flight_dictionary()
+    if(flight_number not in flight_dict):
+        raise Exception('Flight ' + flight_number + ' does not exist.')
+
     flight_date = flight_dict[flight_number]['flight_date']
     start_time  = flight_dict[flight_number]['start_time']
     end_time    = flight_dict[flight_number]['end_time']
@@ -553,13 +482,17 @@ def setup_notebook(flight_number, m_flag) :
     aircraft_track_file = flight_number + '_' + flight_date + '_Aircraft_Track_Data.csv'
     aircraft_df = read_data(obsdir,aircraft_track_file)
     data['aircraft'] = aircraft_df
-
+    
     if(m_flag):
         modeldir = './Data_Files/Model/'+flight_number+'/'  # Define the data directory.TEMP!
         model_track_file    = flight_number + '_' + flight_date + '_Model_Track_Data.csv'
-        #model_column_file   = flight_number + '_' + flight_date + '_Model_Column_Data.nc'# Define the data files.
+        model_column_file   = flight_number + '_' + flight_date + '_Model_Column_Data.nc'# Define the data files.
         model_df    = read_data(modeldir,model_track_file)   # Read the data.
         data['model'] = model_df
+    else:
+        modeldir = None
+        model_column_file = None
+
 
     options = {
         # Define the resampling time and averaging methods.
@@ -579,4 +512,4 @@ def setup_notebook(flight_number, m_flag) :
         'm_colour': 'indianred' #model colour
     }
 
-    return time_filter_flag, start_time, end_time, data, options, plotdir#, modeldir, model_column_file, flight_date,
+    return time_filter_flag, start_time, end_time, data, options, plotdir, modeldir, model_column_file, flight_date
