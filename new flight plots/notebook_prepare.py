@@ -79,7 +79,7 @@ def read_data(datadir,datafile) :
 
     return df
 
-def combine_data(setup,code) : #rename 'process' or similar?
+def combine_data(setup,code) :
 
     """
     Combine the model and aircraft data into a single data frame.
@@ -308,8 +308,6 @@ def resample_wind_data(df,resample_time) :
     m_v_data = df['Model_V_Wind'][:].tolist()
 
     speed = [np.sqrt(u**2+v**2) for u,v in zip(m_u_data,m_v_data)]
-    print(np.nanmin(speed),np.nanmax(speed))
-
 
     # Resample the data frame.
     if resample_time == '10s' :
@@ -381,27 +379,25 @@ def setup_figure() :
 
     return fig, ax
 
-def setup_map() :
+def setup_map(fig,n,m_flag) :
 
     """
     Set up the map.
     """
+    if(m_flag): i = 3
+    else: i = 1
 
-    fig = plt.figure(figsize=(15,15))
-
-    ax = plt.axes(projection=ccrs.PlateCarree())
+    ax = fig.add_subplot(1,i,n,projection=ccrs.PlateCarree())
 
     ax.outline_patch.set_linewidth(5)
 
     ax.background_patch.set_visible(False)
 
-
     land = cfeature.NaturalEarthFeature('physical','land','10m',facecolor='dimgrey',alpha=0.5)
 
     ax.add_feature(land,zorder=1)
 
-
-    return fig, ax
+    return ax
 
 def calculate_time_markers(time_data) :
 
@@ -464,7 +460,7 @@ def setup_notebook(flight_number, m_flag) :
 
     # Define the plot directory.
     # This doesn't need changing unless you want to save the plots to a different location.
-    plotdir = './Plots/'+flight_number+'/' #REMOVE?
+    plotdir = './Plots/'+flight_number+'/'
 
 
     # Define the time interval information.
@@ -484,7 +480,7 @@ def setup_notebook(flight_number, m_flag) :
     data['aircraft'] = aircraft_df
     
     if(m_flag):
-        modeldir = './Data_Files/Model/'+flight_number+'/'  # Define the data directory.TEMP!
+        modeldir = './Data_Files/Model/'+flight_number+'/'  # Define the data directory.
         model_track_file    = flight_number + '_' + flight_date + '_Model_Track_Data.csv'
         model_column_file   = flight_number + '_' + flight_date + '_Model_Column_Data.nc'# Define the data files.
         model_df    = read_data(modeldir,model_track_file)   # Read the data.
@@ -500,7 +496,7 @@ def setup_notebook(flight_number, m_flag) :
         # The min_method and max_method refer to the quantile of the data.
         # For the minimum and maximum select 0 and 1, for the interquartile range, select 0.25 and 0.75.
         'avg_method': 'mean',
-        'resample_time': '10s',
+        'resample_time': '30s',
         'min_method': 0,
         'max_method': 1,
         # Define the bin sizes for altitude (in metres), latitude (in degrees north) and longitude (in degrees east).
