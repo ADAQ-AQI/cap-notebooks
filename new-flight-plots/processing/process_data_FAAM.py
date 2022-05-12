@@ -155,10 +155,8 @@ def read_aircraft_data(obsdir,flight_number,flight_date,aircraft_csv_file) :
 
 def add_altitude_coord(cube):
 
-    # These constants may change, depending on model resolution.
+    # model_top may change, depending on model resolution.
     model_top = 80000.000 # m
-    etacst = 0.2194822
-    #orogcube = iris.load_cube(modeldir+flight_number+suite+'/orog/'+"20180615T0000Z_Fields_gridorog_C1_T1_201806150000.txt")
 
     cube = cube.copy()
     coord_names = [coord.name() for coord in cube.dim_coords]
@@ -188,22 +186,7 @@ def add_altitude_coord(cube):
     cube.coord("z").units = "m"
     cube.coord("z").rename("level_height")
     iris.util.promote_aux_coord_to_dim_coord(cube, "level_height")
-    """
-    # Create altitude 
-    b = (1 - eta/etacst)**2
-    altitude =  eta[:, np.newaxis, np.newaxis] * model_top + b[:, np.newaxis, np.newaxis] * orogcube.data
 
-    # Create altitude aux coord
-    altcoord = iris.coords.AuxCoord(altitude, long_name='altitude', units='m')
-    
-    # Add aux coord, checking on data dimensions
-    coord_names = [coord.name() for coord in cube.dim_coords]
-    if 'time' in coord_names:
-        data_dims = (1,2,3)
-    else:
-        data_dims = (0,1,2)
-    cube.add_aux_coord(altcoord, data_dims=data_dims)
-    """
     return cube
 
 def process_gridded_model_data(modeldir,flight_number,suite,flight_date,gridded_file) :
@@ -252,29 +235,32 @@ def filter_gridded_model_data(modeldir,obsdir,flight_number,suite,flight_date,gr
     aircraft_times,aircraft_lats,aircraft_lons,aircraft_alts = read_aircraft_data(obsdir,flight_number,flight_date,aircraft_csv_file)
 
     #Time filtering will work differently for NAME vs AQUM:
-    #"The partial datetime functionality doesn't work with time coordinates that have bounds (I don't know why not). 
+    #"The partial datetime functionality doesn't work with time coordinates that have bounds. 
     #By using cell.point you are explicitly telling iris to ignore bounds and just use the cell centre point for comparison."
     #So have just done it manually for now.
-    """
-    # Time filtering - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    
+    model = 'NAME'
 
-    # Define the first and last aircraft data point.
-    start_hour   = int((pd.to_datetime(aircraft_times[0],unit='s')).hour)
-    start_minute = int((pd.to_datetime(aircraft_times[0],unit='s')).minute)
-    end_hour     = int((pd.to_datetime(aircraft_times[-1],unit='s')).hour)
-    end_minute   = int((pd.to_datetime(aircraft_times[-1],unit='s')).minute)
+    if model == 'AQUM':
+        # Time filtering - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-    # Define the start time of the filtering as 10 minutes before the
-    # first aircraft data point and the end time as 10 minutes after
-    # the last data point.
-    start_time = PartialDateTime(year=int(flight_date[0:4]),month=int(flight_date[4:6]),
-                                 day=int(flight_date[6:8]),hour=start_hour,minute=start_minute-10)                                  
-    end_time = PartialDateTime(year=int(flight_date[0:4]),month=int(flight_date[4:6]),
-                               day=int(flight_date[6:8]),hour=end_hour,minute=end_minute+10)
+        # Define the first and last aircraft data point.
+        start_hour   = int((pd.to_datetime(aircraft_times[0],unit='s')).hour)
+        start_minute = int((pd.to_datetime(aircraft_times[0],unit='s')).minute)
+        end_hour     = int((pd.to_datetime(aircraft_times[-1],unit='s')).hour)
+        end_minute   = int((pd.to_datetime(aircraft_times[-1],unit='s')).minute)
 
-    # Define the date time constraint for loading the data.
-    time_filter = iris.Constraint(time=lambda cell: start_time < cell < end_time)
-    """
+        # Define the start time of the filtering as 10 minutes before the
+        # first aircraft data point and the end time as 10 minutes after
+        # the last data point.
+        start_time = PartialDateTime(year=int(flight_date[0:4]),month=int(flight_date[4:6]),
+                                    day=int(flight_date[6:8]),hour=start_hour,minute=start_minute-10)                                  
+        end_time = PartialDateTime(year=int(flight_date[0:4]),month=int(flight_date[4:6]),
+                                day=int(flight_date[6:8]),hour=end_hour,minute=end_minute+10)
+
+        # Define the date time constraint for loading the data.
+        time_filter = iris.Constraint(time=lambda cell: start_time < cell < end_time)
+    
     # Latitude and longitude filtering - - - - - - - - - - - - - - - - - - - - -
 
     # Define the minimum and maximum aircraft latitude.
@@ -474,56 +460,57 @@ def convert_track_data_to_csv(modeldir,flight_number,suite,track_cubes,track_csv
     alt_data = sample_cube.coord('level_height').points.tolist()
     df['Altitude / m'] = pd.Series(alt_data,index=datetime_data)
 
-    """
-    # Process the wind data.
-    xwind_data = track_cubes.extract(iris.Constraint(name='x_wind'))[0].data[:].tolist()
-    ywind_data = track_cubes.extract(iris.Constraint(name='y_wind'))[0].data[:].tolist()
-    windspeed_data = [np.sqrt(x**2+y**2) for x,y in zip(xwind_data,ywind_data)]
-    df['U Wind / m s-1'] = pd.Series(xwind_data,index=datetime_data)
-    df['V Wind / m s-1'] = pd.Series(ywind_data,index=datetime_data)
-    df['Wind Speed / m s-1'] = pd.Series(windspeed_data,index=datetime_data)
-
-    # Process the boundary layer height data.
-    blheight_data = track_cubes.extract(iris.Constraint(name='atmosphere_boundary_layer_thickness'))[0].data.tolist()
-    df['Boundary Layer Thickness / m'] = pd.Series(blheight_data,index=datetime_data)
-
-    # Process the air pressure data.
-    airpressure_data = track_cubes.extract(iris.Constraint(name='air_pressure'))[0].data[:].tolist()
-    pressure_pa_to_hpa_conversion = 0.01
-    airpressure_data = [x*pressure_pa_to_hpa_conversion for x in airpressure_data]
-    df['Air Pressure / hPa'] = pd.Series(airpressure_data,index=datetime_data)
-
-    # Process the air temperature data.
-    airtemp_data = track_cubes.extract(iris.Constraint(name='air_temperature'))[0].data[:].tolist()
-    df['Air Temperature / K'] = pd.Series(airtemp_data,index=datetime_data)
-
-    # Process the specific humidity data.
-    spechumidity_data = track_cubes.extract(iris.Constraint(name='specific_humidity'))[0].data[:].tolist()
-    df['Specific Humidity / kg kg-1'] = pd.Series(spechumidity_data,index=datetime_data)
-
-    # Process the surface air pressure data.
-    surfaceairpressure_data = track_cubes.extract(iris.Constraint(name='surface_air_pressure'))[0].data.tolist()
-    pressure_pa_to_hpa_conversion = 0.01
-    surfaceairpressure_data = [x*pressure_pa_to_hpa_conversion for x in surfaceairpressure_data]
-    df['Surface Air Pressure / hPa'] = pd.Series(surfaceairpressure_data,index=datetime_data)
-
-    # Process the surface air temperature data.
-    surfaceairtemp_data = track_cubes.extract(iris.Constraint(name='surface_temperature'))[0].data.tolist()
-    df['Surface Air Temperature / K'] = pd.Series(surfaceairtemp_data,index=datetime_data)
-    
-
-    # Process the NO data.
-    no_data = track_cubes.extract(iris.Constraint(name='mass_fraction_of_nitrogen_monoxide_in_air'))[0].data[:].tolist()
-    kgkg_ppb_conversion  = 1e9
-    no_ppb_data = [x*kgkg_ppb_conversion for x in no_data]
-    df['NO / ppb'] = pd.Series(no_ppb_data,index=datetime_data)
-    no_kgkg_ugm3_conversion = 1.248e9
-    no_ugm3_data = [x*no_kgkg_ugm3_conversion for x in no_data]
-    df['NO / ug m-3'] = pd.Series(no_ugm3_data,index=datetime_data)
-"""
     # Process the PM2.5 data.
     pm2p5_data = track_cubes.extract(iris.Constraint(name='TOTAL_PM25_CONCENTRATION'))[0].data[:].tolist()
     df['PM2.5 / ug m-3'] = pd.Series(pm2p5_data,index=datetime_data)
+
+    other_data = False
+
+    if other_data:
+        # Process the wind data.
+        xwind_data = track_cubes.extract(iris.Constraint(name='x_wind'))[0].data[:].tolist()
+        ywind_data = track_cubes.extract(iris.Constraint(name='y_wind'))[0].data[:].tolist()
+        windspeed_data = [np.sqrt(x**2+y**2) for x,y in zip(xwind_data,ywind_data)]
+        df['U Wind / m s-1'] = pd.Series(xwind_data,index=datetime_data)
+        df['V Wind / m s-1'] = pd.Series(ywind_data,index=datetime_data)
+        df['Wind Speed / m s-1'] = pd.Series(windspeed_data,index=datetime_data)
+
+        # Process the boundary layer height data.
+        blheight_data = track_cubes.extract(iris.Constraint(name='atmosphere_boundary_layer_thickness'))[0].data.tolist()
+        df['Boundary Layer Thickness / m'] = pd.Series(blheight_data,index=datetime_data)
+
+        # Process the air pressure data.
+        airpressure_data = track_cubes.extract(iris.Constraint(name='air_pressure'))[0].data[:].tolist()
+        pressure_pa_to_hpa_conversion = 0.01
+        airpressure_data = [x*pressure_pa_to_hpa_conversion for x in airpressure_data]
+        df['Air Pressure / hPa'] = pd.Series(airpressure_data,index=datetime_data)
+
+        # Process the air temperature data.
+        airtemp_data = track_cubes.extract(iris.Constraint(name='air_temperature'))[0].data[:].tolist()
+        df['Air Temperature / K'] = pd.Series(airtemp_data,index=datetime_data)
+
+        # Process the specific humidity data.
+        spechumidity_data = track_cubes.extract(iris.Constraint(name='specific_humidity'))[0].data[:].tolist()
+        df['Specific Humidity / kg kg-1'] = pd.Series(spechumidity_data,index=datetime_data)
+
+        # Process the surface air pressure data.
+        surfaceairpressure_data = track_cubes.extract(iris.Constraint(name='surface_air_pressure'))[0].data.tolist()
+        pressure_pa_to_hpa_conversion = 0.01
+        surfaceairpressure_data = [x*pressure_pa_to_hpa_conversion for x in surfaceairpressure_data]
+        df['Surface Air Pressure / hPa'] = pd.Series(surfaceairpressure_data,index=datetime_data)
+
+        # Process the surface air temperature data.
+        surfaceairtemp_data = track_cubes.extract(iris.Constraint(name='surface_temperature'))[0].data.tolist()
+        df['Surface Air Temperature / K'] = pd.Series(surfaceairtemp_data,index=datetime_data)
+        
+        # Process the NO data.
+        no_data = track_cubes.extract(iris.Constraint(name='mass_fraction_of_nitrogen_monoxide_in_air'))[0].data[:].tolist()
+        kgkg_ppb_conversion  = 1e9
+        no_ppb_data = [x*kgkg_ppb_conversion for x in no_data]
+        df['NO / ppb'] = pd.Series(no_ppb_data,index=datetime_data)
+        no_kgkg_ugm3_conversion = 1.248e9
+        no_ugm3_data = [x*no_kgkg_ugm3_conversion for x in no_data]
+        df['NO / ug m-3'] = pd.Series(no_ugm3_data,index=datetime_data)
 
     # Save the CSV file.
     df.to_csv(modeldir+flight_number+suite+'/'+track_csv_file)
@@ -550,13 +537,11 @@ if __name__ == '__main__' :
     if not aircraft_csv_file in os.listdir(obsdir+flight_number+'/') :
         print('Processing aircraft data for flight',flight_number)
         process_aircraft_data(obsdir,flight_number,flight_date,aircraft_csv_file)
-        #    creates ../Data_Files/Aircraft/C110/C110_20180629_Aircraft_Track_Data
 
     # Check whether the combined model gridded data exists and if not create the file.
     if not gridded_file in os.listdir(modeldir+flight_number+suite+'/') :
         print('Creating combined gridded model data for flight',flight_number)
         process_gridded_model_data(modeldir,flight_number,suite,flight_date,gridded_file) 
-        # creates Model_Gridded_Data.nc
 
     # Create a second file which is filtered based on the aircraft coordinates to minimise data file size.
     if not filtered_gridded_file in os.listdir(modeldir+flight_number+suite+'/') :
