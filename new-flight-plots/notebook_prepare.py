@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import cartopy.io.img_tiles as cimgt
+import iris.pandas
 
 def flight_dictionary() :
 
@@ -24,7 +25,10 @@ def flight_dictionary() :
                              'end_time'    : '12:52:52'},
                    'M302' : {'flight_date' : '20210722',
                              'start_time'  : '11:04:47',
-                             'end_time'    : '12:11:11'}}
+                             'end_time'    : '12:11:11'},
+                   'C110' : {'flight_date' : '20180629',
+                             'start_time'  : '09:32:56',
+                             'end_time'    : '14:30:04'}}
 
     return flight_dict
 
@@ -36,8 +40,12 @@ def species_dictionary() :
     labels to use for figure axes and unit conversions to convert between
     different units.
     """
-
-    species_dict = {'NO2'     : {'code':  'NO2 / ug m-3',
+    species_dict = {'PM2.5' : {'code':  'PM2.5 / ug m-3',
+                            'label': 'PM$_2$$_.$$_5$ / \u03BCg m$^-$$^3$',
+                            'column_key': 'total_pm25_concentration',
+                            'unit_conv': 1}}
+                            
+    """species_dict = {'NO2'     : {'code':  'NO2 / ug m-3',
                                  'label': 'NO$_2$ / \u03BCg m$^-$$^3$',
                                  'column_key': 'mass_fraction_of_nitrogen_dioxide_in_air',
                                  'unit_conv': 1.913e9},
@@ -64,7 +72,7 @@ def species_dictionary() :
                     'PM2.5'   : {'code':  'PM2.5 / ug m-3',
                                  'label': 'PM$_2$$_.$$_5$ / \u03BCg m$^-$$^3$',
                                  'column_key': 'mass_concentration_of_pm2p5_dry_aerosol_in_air',
-                                 'unit_conv': 1}}
+                                 'unit_conv': 1}}"""
 
     return species_dict
 
@@ -119,8 +127,8 @@ def combine_data(setup,code) :
         model_data  = model_df[code][:].tolist()
         model_data  = [float(m) for m in model_data]
         df['Model'] = pd.Series(model_data,index=model_df.index)
-
-        # Add the boundary layer height information to the data frame.
+        
+        """# Add the boundary layer height information to the data frame.
         bl_data = model_df['Boundary Layer Thickness / m'][:].tolist()
         bl_data = [float(b) for b in bl_data]
         df['Boundary_Layer_Height'] = pd.Series(bl_data,index=model_df.index)
@@ -131,7 +139,7 @@ def combine_data(setup,code) :
         m_u_data = [float(u) for u in m_u_data]
         m_v_data = [float(v) for v in m_v_data]
         df['Model_U_Wind'] = pd.Series(m_u_data,index=model_df.index)
-        df['Model_V_Wind'] = pd.Series(m_v_data,index=model_df.index)
+        df['Model_V_Wind'] = pd.Series(m_v_data,index=model_df.index)"""
 
     # Cut out the desired time interval.
     if time_filter_flag == True :
@@ -162,12 +170,12 @@ def resample_data(df,resample_time,avg_method,min_method,max_method, m_flag) :
     new_df['Aircraft_Max'] = pd.Series(max_df['Aircraft'][:],index=max_df.index)
 
     if (m_flag):
-        new_df = new_df.rename(columns={'Model':'Model_Avg','Boundary_Layer_Height':'Boundary_Layer_Height_Avg',
-                                        'Model_U_Wind':'Model_U_Wind_Avg','Model_V_Wind':'Model_V_Wind_Avg'})
+        new_df = new_df.rename(columns={'Model':'Model_Avg'})#,'Boundary_Layer_Height':'Boundary_Layer_Height_Avg',
+                                        #'Model_U_Wind':'Model_U_Wind_Avg','Model_V_Wind':'Model_V_Wind_Avg'})
         new_df['Model_Min']    = pd.Series(min_df['Model'][:],index=min_df.index)
-        new_df['Boundary_Layer_Height_Min'] = pd.Series(min_df['Boundary_Layer_Height'][:],index=min_df.index)
+        #new_df['Boundary_Layer_Height_Min'] = pd.Series(min_df['Boundary_Layer_Height'][:],index=min_df.index)
         new_df['Model_Max']    = pd.Series(max_df['Model'][:],index=max_df.index)
-        new_df['Boundary_Layer_Height_Max'] = pd.Series(max_df['Boundary_Layer_Height'][:],index=max_df.index)
+        #new_df['Boundary_Layer_Height_Max'] = pd.Series(max_df['Boundary_Layer_Height'][:],index=max_df.index)
 
     return new_df
 
@@ -291,9 +299,9 @@ def read_data_values(df, m_flag) :
         values['m_avg'] = df['Model_Avg'][:]
         values['m_max'] = df['Model_Max'][:]
 
-        values['bl_min'] = df['Boundary_Layer_Height_Min'][:]
+        """values['bl_min'] = df['Boundary_Layer_Height_Min'][:]
         values['bl_avg'] = df['Boundary_Layer_Height_Avg'][:]
-        values['bl_max'] = df['Boundary_Layer_Height_Max'][:]
+        values['bl_max'] = df['Boundary_Layer_Height_Max'][:]"""
 
     return values
 
@@ -337,7 +345,6 @@ def read_cross_section(datadir,datafile,column_key,unit_conv,time_filter_flag,st
     """
 
     f = Dataset(datadir+datafile,mode='r',format='NETCDF4')
-
     column = {}
     column['time'] = pd.to_datetime(f['time'][:],unit='h')
     column['alt']  = f['level_height'][:]
@@ -458,10 +465,13 @@ def setup_notebook(flight_number, m_flag) :
     start_time  = flight_dict[flight_number]['start_time']
     end_time    = flight_dict[flight_number]['end_time']
 
+    # Define the suite name.
+    # For model run variations of the same flight.
+    suite = 'mi-bd591'
+
     # Define the plot directory.
     # This doesn't need changing unless you want to save the plots to a different location.
-    plotdir = './Plots/'+flight_number+'/'
-
+    plotdir = './Plots/'+flight_number+'/'+suite+'/'
 
     # Define the time interval information.
     # Set the time_filter_flag to True in order to cut out the chosen time range.
@@ -480,7 +490,7 @@ def setup_notebook(flight_number, m_flag) :
     data['aircraft'] = aircraft_df
     
     if(m_flag):
-        modeldir = './Data_Files/Model/'+flight_number+'/'  # Define the data directory.
+        modeldir = './Data_Files/Model/'+flight_number+'/'+suite+'/'  # Define the data directory.
         model_track_file    = flight_number + '_' + flight_date + '_Model_Track_Data.csv'
         model_column_file   = flight_number + '_' + flight_date + '_Model_Column_Data.nc'# Define the data files.
         model_df    = read_data(modeldir,model_track_file)   # Read the data.
@@ -496,7 +506,7 @@ def setup_notebook(flight_number, m_flag) :
         # The min_method and max_method refer to the quantile of the data.
         # For the minimum and maximum select 0 and 1, for the interquartile range, select 0.25 and 0.75.
         'avg_method': 'mean',
-        'resample_time': '30s',
+        'resample_time': '60s',
         'min_method': 0,
         'max_method': 1,
         # Define the bin sizes for altitude (in metres), latitude (in degrees north) and longitude (in degrees east).
