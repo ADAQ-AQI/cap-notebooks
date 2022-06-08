@@ -32,7 +32,7 @@ def flight_dictionary() :
 
     return flight_dict
 
-def species_dictionary() :
+def species_dictionary(flight_number) :
 
     """
     Create a dictionary of species information for creating the figures.
@@ -40,39 +40,41 @@ def species_dictionary() :
     labels to use for figure axes and unit conversions to convert between
     different units.
     """
-    species_dict = {'PM2.5' : {'code':  'PM2.5 / ug m-3',
-                            'label': 'PM$_2$$_.$$_5$ / \u03BCg m$^-$$^3$',
-                            'column_key': 'total_pm25_concentration',
-                            'unit_conv': 1}}
-                            
-    """species_dict = {'NO2'     : {'code':  'NO2 / ug m-3',
-                                 'label': 'NO$_2$ / \u03BCg m$^-$$^3$',
-                                 'column_key': 'mass_fraction_of_nitrogen_dioxide_in_air',
-                                 'unit_conv': 1.913e9},
-                    'O3'      : {'code':  'O3 / ug m-3',
-                                 'label': 'O$_3$ / \u03BCg m$^-$$^3$',
-                                 'column_key': 'mass_fraction_of_ozone_in_air',
-                                 'unit_conv': 1.996e9},
-                    'SO2'     : {'code':  'SO2 / ug m-3',
-                                 'label': 'SO$_2$ / \u03BCg m$^-$$^3$',
-                                 'column_key': 'mass_fraction_of_sulfur_dioxide_expressed_as_sulfur_in_air',
-                                 'unit_conv': 2.661e9},
-                    'NO2_ppb' : {'code':  'NO2 / ppb',
-                                 'label': 'NO$_2$ / ppb',
-                                 'column_key': 'mass_fraction_of_nitrogen_dioxide_in_air',
-                                 'unit_conv': 1e9},
-                    'O3_ppb'  : {'code':  'O3 / ppb',
-                                 'label': 'O$_3$ / ppb',
-                                 'column_key': 'mass_fraction_of_ozone_in_air',
-                                 'unit_conv': 1e9},
-                    'SO2_ppb' : {'code':  'SO2 / ppb',
-                                 'label': 'SO$_2$ / ppb',
-                                 'column_key': 'mass_fraction_of_sulfur_dioxide_expressed_as_sulfur_in_air',
-                                 'unit_conv': 1e9},
-                    'PM2.5'   : {'code':  'PM2.5 / ug m-3',
-                                 'label': 'PM$_2$$_.$$_5$ / \u03BCg m$^-$$^3$',
-                                 'column_key': 'mass_concentration_of_pm2p5_dry_aerosol_in_air',
-                                 'unit_conv': 1}}"""
+    if flight_number in {'C110'}:
+        species_dict = {'PM2.5' : {'code':  'PM2.5 / ug m-3',
+                                'label': 'PM$_2$$_.$$_5$ / \u03BCg m$^-$$^3$',
+                                'column_key': 'total_pm25_concentration',
+                                'unit_conv': 1}}
+
+    elif flight_number in {'M270', 'M296', 'M302'}:
+        species_dict = {'NO2'     : {'code':  'NO2 / ug m-3',
+                                    'label': 'NO$_2$ / \u03BCg m$^-$$^3$',
+                                    'column_key': 'mass_fraction_of_nitrogen_dioxide_in_air',
+                                    'unit_conv': 1.913e9},
+                        'O3'      : {'code':  'O3 / ug m-3',
+                                    'label': 'O$_3$ / \u03BCg m$^-$$^3$',
+                                    'column_key': 'mass_fraction_of_ozone_in_air',
+                                    'unit_conv': 1.996e9},
+                        'SO2'     : {'code':  'SO2 / ug m-3',
+                                    'label': 'SO$_2$ / \u03BCg m$^-$$^3$',
+                                    'column_key': 'mass_fraction_of_sulfur_dioxide_expressed_as_sulfur_in_air',
+                                    'unit_conv': 2.661e9},
+                        'NO2_ppb' : {'code':  'NO2 / ppb',
+                                    'label': 'NO$_2$ / ppb',
+                                    'column_key': 'mass_fraction_of_nitrogen_dioxide_in_air',
+                                    'unit_conv': 1e9},
+                        'O3_ppb'  : {'code':  'O3 / ppb',
+                                    'label': 'O$_3$ / ppb',
+                                    'column_key': 'mass_fraction_of_ozone_in_air',
+                                    'unit_conv': 1e9},
+                        'SO2_ppb' : {'code':  'SO2 / ppb',
+                                    'label': 'SO$_2$ / ppb',
+                                    'column_key': 'mass_fraction_of_sulfur_dioxide_expressed_as_sulfur_in_air',
+                                    'unit_conv': 1e9},
+                        'PM2.5'   : {'code':  'PM2.5 / ug m-3',
+                                    'label': 'PM$_2$$_.$$_5$ / \u03BCg m$^-$$^3$',
+                                    'column_key': 'mass_concentration_of_pm2p5_dry_aerosol_in_air',
+                                    'unit_conv': 1}}
 
     return species_dict
 
@@ -128,18 +130,22 @@ def combine_data(setup,code) :
         model_data  = [float(m) for m in model_data]
         df['Model'] = pd.Series(model_data,index=model_df.index)
         
-        """# Add the boundary layer height information to the data frame.
-        bl_data = model_df['Boundary Layer Thickness / m'][:].tolist()
-        bl_data = [float(b) for b in bl_data]
-        df['Boundary_Layer_Height'] = pd.Series(bl_data,index=model_df.index)
+        # Add the boundary layer height information to the data frame.
+        if 'Boundary Layer Thickness / m' in model_df:
+            bl_data = model_df['Boundary Layer Thickness / m'][:].tolist()
+            bl_data = [float(b) for b in bl_data]
+            df['Boundary_Layer_Height'] = pd.Series(bl_data,index=model_df.index)
 
         # Add the model wind data to the data frame.
-        m_u_data = model_df['U Wind / m s-1'][:].tolist()
-        m_v_data = model_df['V Wind / m s-1'][:].tolist()
-        m_u_data = [float(u) for u in m_u_data]
-        m_v_data = [float(v) for v in m_v_data]
-        df['Model_U_Wind'] = pd.Series(m_u_data,index=model_df.index)
-        df['Model_V_Wind'] = pd.Series(m_v_data,index=model_df.index)"""
+        if 'U Wind / m s-1' and 'V Wind / m s-1' in model_df:
+            m_u_data = model_df['U Wind / m s-1'][:].tolist()
+            m_u_data = [float(u) for u in m_u_data]
+            df['Model_U_Wind'] = pd.Series(m_u_data,index=model_df.index)
+
+            m_v_data = model_df['V Wind / m s-1'][:].tolist()
+            m_v_data = [float(v) for v in m_v_data]
+            df['Model_V_Wind'] = pd.Series(m_v_data,index=model_df.index)
+
 
     # Cut out the desired time interval.
     if time_filter_flag == True :
@@ -170,17 +176,43 @@ def resample_data(df,resample_time,avg_method,min_method,max_method, m_flag) :
     new_df['Aircraft_Max'] = pd.Series(max_df['Aircraft'][:],index=max_df.index)
 
     if (m_flag):
-        new_df = new_df.rename(columns={'Model':'Model_Avg'})#,'Boundary_Layer_Height':'Boundary_Layer_Height_Avg',
-                                        #'Model_U_Wind':'Model_U_Wind_Avg','Model_V_Wind':'Model_V_Wind_Avg'})
+        new_df = new_df.rename(columns={'Model':'Model_Avg'})
         new_df['Model_Min']    = pd.Series(min_df['Model'][:],index=min_df.index)
-        #new_df['Boundary_Layer_Height_Min'] = pd.Series(min_df['Boundary_Layer_Height'][:],index=min_df.index)
         new_df['Model_Max']    = pd.Series(max_df['Model'][:],index=max_df.index)
-        #new_df['Boundary_Layer_Height_Max'] = pd.Series(max_df['Boundary_Layer_Height'][:],index=max_df.index)
+
+        if 'Boundary_Layer_Height' in new_df:
+            new_df = new_df.rename(columns={'Boundary_Layer_Height':'Boundary_Layer_Height_Avg'})
+            new_df['Boundary_Layer_Height_Min'] = pd.Series(min_df['Boundary_Layer_Height'][:],index=min_df.index)
+            new_df['Boundary_Layer_Height_Max'] = pd.Series(max_df['Boundary_Layer_Height'][:],index=max_df.index)
+
+        if 'Model_U_Wind' and 'Model_V_Wind' in new_df:
+            new_df = new_df.rename(columns={'Model_U_Wind':'Model_U_Wind_Avg','Model_V_Wind':'Model_V_Wind_Avg'})
 
     return new_df
 
-def bin_loop(df, var_data, avg_method, min_method, max_method, start, max_var, bin, m_flag):
-    
+def bin_data(dimension, df, avg_method, min_method, max_method, bin, m_flag):
+    """
+    Divide the data into bins based on var_data and calculate averages and ranges of the data.
+    """
+    # Read the data from the data frame.
+    var_data = df[dimension][:].tolist()
+
+    # Calculate the minimum and maximum data point.
+    min_var = np.nanmin(var_data)
+    max_var = np.nanmax(var_data)
+
+    if dimension == 'Altitude':
+        start = 0
+
+    elif dimension == 'Latitude':
+        start = int(min_var*10) / 10
+
+    elif dimension == 'Longitude':
+        if min_var > 0 :
+            start = int(min_var*10) / 10
+        else :
+            start = int((min_var-bin)*10) / 10
+
     # Create dictionary to hold the processed data.
     data = {} 
     data['binned'] = []
@@ -225,64 +257,6 @@ def bin_loop(df, var_data, avg_method, min_method, max_method, start, max_var, b
         start += bin
     return data
 
-def bin_altitude_data(df,avg_method,min_method,max_method,alt_bin, m_flag) :
-
-    """
-    Divide the data into bins based on altitude and calculate averages and ranges of the data.
-    """
-
-    # Read the data from the data frame.
-    alt_data = df['Altitude'][:].tolist()
-
-    # Calculate the maximum altitude data point.
-    max_alt = np.nanmax(alt_data)
-
-    start = 0
-
-    results = bin_loop(df, alt_data, avg_method, min_method, max_method, start, max_alt, alt_bin, m_flag)
- 
-    return results
-
-def bin_latitude_data(df,avg_method,min_method,max_method,lat_bin, m_flag) :
-
-    """
-    Divide the data into bins based on latitude and calculate averages and ranges of the data.
-    """
-
-    # Read the data from the data frame.
-    lat_data = df['Latitude'][:].tolist()
-
-    # Calculate the minimum and maximum latitude data point.
-    min_lat = np.nanmin(lat_data)
-    max_lat = np.nanmax(lat_data)
-
-    start = int(min_lat*10) / 10
-
-    results = bin_loop(df, lat_data, avg_method, min_method, max_method, start, max_lat, lat_bin, m_flag)
-
-    return results
-
-def bin_longitude_data(df,avg_method,min_method,max_method,lon_bin, m_flag) :
-
-    """
-    Divide the data into bins based on longitude and calculate averages and ranges of the data.
-    """
-
-    # Read the data from the data frame.
-    lon_data = df['Longitude'][:].tolist()
-
-    # Calculate the minimum and maximum longitude data point.
-    min_lon = np.nanmin(lon_data)
-    max_lon = np.nanmax(lon_data)
-
-    if min_lon > 0 :
-        start = int(min_lon*10) / 10
-    else :
-        start = int((min_lon-lon_bin)*10) / 10
-    results = bin_loop(df, lon_data, avg_method, min_method, max_method, start, max_lon, lon_bin, m_flag)
-
-    return results
-
 def read_data_values(df, m_flag) :
 
     """
@@ -299,9 +273,10 @@ def read_data_values(df, m_flag) :
         values['m_avg'] = df['Model_Avg'][:]
         values['m_max'] = df['Model_Max'][:]
 
-        """values['bl_min'] = df['Boundary_Layer_Height_Min'][:]
-        values['bl_avg'] = df['Boundary_Layer_Height_Avg'][:]
-        values['bl_max'] = df['Boundary_Layer_Height_Max'][:]"""
+        if 'Boundary_Layer_Height_Avg' in df:
+            values['bl_min'] = df['Boundary_Layer_Height_Min'][:]
+            values['bl_avg'] = df['Boundary_Layer_Height_Avg'][:]
+            values['bl_max'] = df['Boundary_Layer_Height_Max'][:]
 
     return values
 
@@ -467,7 +442,7 @@ def setup_notebook(flight_number, m_flag) :
 
     # Define the suite name.
     # For model run variations of the same flight.
-    suite = 'mi-bd591'
+    suite = 'mi-bd327'
 
     # Define the plot directory.
     # This doesn't need changing unless you want to save the plots to a different location.
