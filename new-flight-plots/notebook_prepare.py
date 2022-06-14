@@ -1,5 +1,6 @@
 from distutils.log import error
 import os
+from xmlrpc.client import boolean
 import numpy as np
 import pandas as pd
 from   netCDF4 import Dataset
@@ -429,7 +430,16 @@ def calculate_time_markers(time_data) :
 
     return time_ticks, time_labels
 
-def setup_notebook(flight_number, m_flag) :
+def setup_notebook(flight_number: str, m_flag: boolean) :
+    """Set up flight info, file paths and other options for each notebook.
+
+    Args:
+        flight_number: code describing a specific flight
+        m_flag: If model data is also being plotted
+
+    Returns:
+        _type_: _description_
+    """
 
     # Extract the flight information from the dictionary.
     flight_dict = flight_dictionary()

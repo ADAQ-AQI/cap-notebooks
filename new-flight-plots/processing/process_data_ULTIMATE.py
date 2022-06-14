@@ -16,6 +16,24 @@ def process_aircraft_data(obsdir,aircraft_nc_file,aircraft,flight_number,flight_
     Save the subset data as a CSV file.
     """
 
+    def add_variables_to_dataframe(datakey) :
+        """
+        Loop through the variables in the datakey,
+        adding them to the dataframe.
+        """
+        for variable in datakey:
+            data = f.variables[variable[0]][:]
+            time = datetime_data
+            if variable[0]+'_flag' in f.variables:
+                flag = f.variables[variable[0]+'_flag'][:]
+                filtered_data = [data[x] for x in range(len(data)) if flag[x] == 0.0]
+                time = [datetime_data[x] for x in range(len(datetime_data)) if flag[x] == 0.0]
+                if variable[0] == 'AIMMS_temperature': #convert celsius to kelvin
+                    data = [x+variable[1] for x in filtered_data]
+                else:
+                    data = [x*variable[1] for x in filtered_data]
+            df[variable[2]] = pd.Series(data,index=time)
+
     # Define the aircraft observational file name.
     obs_file = aircraft_nc_file+'.nc'
 
@@ -39,6 +57,7 @@ def process_aircraft_data(obsdir,aircraft_nc_file,aircraft,flight_number,flight_
     df['Time / seconds since 1970-01-01 00:00:00 UTC'] = pd.Series(time_data,index=datetime_data)
 
     if aircraft == 'MOASA':
+
         # Process the coordinate data.
         # Read the latitude, longitude and altitude data and flags and add the data to the data frame.
         lat_data = f.variables['AIMMS_latitude'][:]
@@ -54,81 +73,22 @@ def process_aircraft_data(obsdir,aircraft_nc_file,aircraft,flight_number,flight_
         df['Longitude / degrees east Flag'] = pd.Series(lon_flag,index=datetime_data)
         df['Altitude / m Flag'] = pd.Series(alt_flag,index=datetime_data)
 
-        # Process the wind data.
-        # Read the wind speed data and flag and remove any data points which are not flagged as good data.
-        windspeed_data = f.variables['AIMMS_wind_speed'][:]
-        windspeed_flag = f.variables['AIMMS_wind_speed_flag'][:]
-        windspeed_data = [windspeed_data[x] for x in range(len(windspeed_data)) if windspeed_flag[x] == 0.0]
-        windspeed_time = [datetime_data[x] for x in range(len(datetime_data)) if windspeed_flag[x] == 0.0]
-        df['Wind Speed / m s-1'] = pd.Series(windspeed_data,index=windspeed_time)
+        # 2D array specifying conversion: 
+        # ["variable name", conversion factor (1 if no conversion needed), "CSV column name"]
+        datakey = [
+            ['AIMMS_wind_speed' , 1, 'Wind Speed / m s-1'],
+            ['AIMMS_pressure' , 1, 'Air Pressure / hPa'],
+            ['AIMMS_temperature' , 273.15, 'Air Temperature / K'],
+            ['AIMMS_RH' , 1, 'Relative Humidity / %'],
+            ['NO2_concentration' , 1, 'NO2 / ppb'],
+            ['NO2_concentration', 1.913, 'NO2 / ug m-3'],
+            ['OZONE_ppb' , 1, 'O3 / ppb'],
+            ['OZONE_ppb' , 1.996, 'O3 / ug m-3'],
+            ['SO2_ppb' , 1, 'SO2 / ppb'],
+            ['SO2_ppb' , 2.661, 'SO2 / ug m-3'],
+            ['POPS_pm25' , 1, 'PM2.5 / ug m-3'],]
 
-        # Process the air pressure data.
-        # Read the air pressure data and flag and remove any data points which are not flagged as good data.
-        airpressure_data = f.variables['AIMMS_pressure'][:]
-        airpressure_flag = f.variables['AIMMS_pressure_flag'][:]
-        airpressure_data = [airpressure_data[x] for x in range(len(airpressure_data)) if airpressure_flag[x] == 0.0]
-        airpressure_time = [datetime_data[x] for x in range(len(datetime_data)) if airpressure_flag[x] == 0.0]
-        df['Air Pressure / hPa'] = pd.Series(airpressure_data,index=airpressure_time)
-
-        # Process the air temperature data.
-        # Read the air temperature data and flag, remove any data points which are not flagged as good data and convert
-        # the temperature from degrees celcius to kelvin.
-        airtemp_data = f.variables['AIMMS_temperature'][:]
-        degc_to_k_conversion = 273.15
-        airtemp_data = [x+degc_to_k_conversion for x in airtemp_data]
-        airtemp_flag = f.variables['AIMMS_temperature_flag'][:]
-        airtemp_data = [airtemp_data[x] for x in range(len(airtemp_data)) if airtemp_flag[x] == 0.0]
-        airtemp_time = [datetime_data[x] for x in range(len(datetime_data)) if airtemp_flag[x] == 0.0]
-        df['Air Temperature / K'] = pd.Series(airtemp_data,index=airtemp_time)
-
-        # Process the relative humidity data.
-        # Read the relative humidity data and flag and remove any data points which are not flagged as good data.
-        relhumidity_data = f.variables['AIMMS_RH'][:]
-        relhumidity_flag = f.variables['AIMMS_RH_flag'][:]
-        relhumidity_data = [relhumidity_data[x] for x in range(len(relhumidity_data)) if relhumidity_flag[x] == 0.0]
-        relhumidity_time = [datetime_data[x] for x in range(len(datetime_data)) if relhumidity_flag[x] == 0.0]
-        df['Relative Humidity / %'] = pd.Series(relhumidity_data,index=relhumidity_time)
-
-        # Process the NO2 data.
-        # Read the concentration data and flag, remove any data points which are not flagged as good data,
-        # convert the units to micrograms per metre cubed and include both units in the data frame.
-        no2_data = f.variables['NO2_concentration'][:]
-        no2_flag = f.variables['NO2_concentration_flag'][:]
-        no2_data = [no2_data[x] for x in range(len(no2_data)) if no2_flag[x] == 0.0]
-        no2_time = [datetime_data[x] for x in range(len(datetime_data)) if no2_flag[x] == 0.0]
-        df['NO2 / ppb'] = pd.Series(no2_data,index=no2_time)
-        no2_ppb_ugm3_conversion = 1.913
-        no2_data = [x*no2_ppb_ugm3_conversion for x in no2_data]
-        df['NO2 / ug m-3'] = pd.Series(no2_data,index=no2_time)
-
-        # Process the O3 data.
-        # Read the concentration data and flag, remove any data points which are not flagged as good data,
-        # convert the units to micrograms per metre cubed and include both units in the data frame.
-        o3_data = f.variables['OZONE_ppb'][:]
-        o3_flag = f.variables['OZONE_ppb_flag'][:]
-        o3_data = [o3_data[x] for x in range(len(o3_data)) if o3_flag[x] == 0.0]
-        o3_time = [datetime_data[x] for x in range(len(datetime_data)) if o3_flag[x] == 0.0]
-        df['O3 / ppb'] = pd.Series(o3_data,index=o3_time)
-        o3_ppb_ugm3_conversion  = 1.996
-        o3_data = [x*o3_ppb_ugm3_conversion for x in o3_data]
-        df['O3 / ug m-3'] = pd.Series(o3_data,index=o3_time)
-
-        # Process the SO2 data.
-        # Read the concentration data and flag, remove any data points which are not flagged as good data,
-        # convert the units to micrograms per metre cubed and include both units in the data frame.
-        so2_data = f.variables['SO2_ppb'][:]
-        so2_flag = f.variables['SO2_ppb_flag'][:]
-        so2_data = [so2_data[x] for x in range(len(so2_data)) if so2_flag[x] == 0.0]
-        so2_time = [datetime_data[x] for x in range(len(datetime_data)) if so2_flag[x] == 0.0]
-        df['SO2 / ppb'] = pd.Series(so2_data,index=so2_time)
-        so2_ppb_ugm3_conversion = 2.661
-        so2_data = [x*so2_ppb_ugm3_conversion for x in so2_data]
-        df['SO2 / ug m-3'] = pd.Series(so2_data,index=so2_time)
-
-        # Process the PM2.5 data.
-        # Read the concentration data and flag and remove any data points which are not flagged as good data.
-        pm2p5_data = f.variables['POPS_pm25'][:]
-        df['PM2.5 / ug m-3'] = pd.Series(pm2p5_data,index=datetime_data)
+        add_variables_to_dataframe(datakey)
 
         # Filter the whole data frame to remove anywhere that does not have valid coordinate data.
         # It does not make sense to have any meteorological or chemical data if we can't associate
@@ -146,17 +106,14 @@ def process_aircraft_data(obsdir,aircraft_nc_file,aircraft,flight_number,flight_
         df['Longitude / degrees east'] = pd.Series(lon_data,index=datetime_data)       
         df['Altitude / m'] = pd.Series(alt_data,index=datetime_data)
 
-        # Process the ozone data.
-        o3 = f.variables['O3_TECO'][:]
-        df['O3 / ppb'] = pd.Series(o3,index=datetime_data)
+        # 2D array specifying conversion: 
+        # ["variable name", conversion factor (1 if no conversion needed), "CSV column name"]
+        datakey = [
+            ['O3_TECO', 1, 'O3 / ppb'],
+            ['CO_AERO', 1, 'CO / ppb'],
+            ['PM2.5', 1, 'PM2.5 / ug m-3']] 
 
-        # Process the carbon monoxide data.
-        co = f.variables['CO_AERO'][:]
-        df['CO / ppb'] = pd.Series(co,index=datetime_data)
-
-        # Process the PM2.5 data.
-        pm = f.variables['PM2.5'][:]
-        df['PM2.5 / ug m-3'] = pd.Series(pm,index=datetime_data)
+        add_variables_to_dataframe(datakey)
 
         # Filter to remove data which have no location information.
         filtered_df = df[np.isfinite(df['Latitude / degrees north'])]
@@ -366,7 +323,7 @@ def read_gridded_model_data(modeldir,flight_number,suite,filtered_gridded_file) 
 
     return gridded_cubes
 
-def process_column_model_data(modeldir,obsdir,flight_number,model,suite,flight_date,column_file,model_cubes,aircraft_csv_file) :
+def process_column_model_data(modeldir,obsdir,flight_number,model,suite,flight_date,column_file,model_cubes,constraints,aircraft_csv_file) :
 
     """
     Use the aircraft time, latitude and longitude to interpolate the model data for the whole column.
@@ -384,46 +341,45 @@ def process_column_model_data(modeldir,obsdir,flight_number,model,suite,flight_d
 
     # Convert the aircraft time from seconds to hours to match the model data.
     aircraft_times = [x/3600 for x in aircraft_times]
+  
+    if len(constraints) > 0:
+        constraintList = []
+        for constraint in constraints:
+            constraintList.append(iris.Constraint(name=constraint))
+        process_cubes = model_cubes.extract_cubes(constraintList)
+    else:
+        process_cubes = model_cubes
 
     # Use the aircraft coordinates to interpolate the model data.
     count = 0
+    for cube in process_cubes :
+        # Create a temporary list to add cube data to and loop over each aircraft coordinate to interpolate the data.
+        temp_cubes = []
+        for x in range(len(aircraft_times)) :
+            # Define the criteria for interpolation.
+            if model == 'AQUM':
+                sample_point = [('time',aircraft_times[x]),
+                                ('grid_latitude',aircraft_rot_lats[x]),
+                                ('grid_longitude',aircraft_rot_lons[x])]
 
-    #TODO can constraint be removed?
-    constraint = iris.Constraint(name="TOTAL_PM25_CONCENTRATION")
-    cube = model_cubes.extract_cube(constraint)
-
-    # for cube in model_cubes :
-
-    # Create a temporary list to add cube data to and loop over each aircraft coordinate to interpolate the data.
-    temp_cubes = []
-    for x in range(len(aircraft_times)) :
-        # Define the criteria for interpolation.
-        if model == 'AQUM':
-            sample_point = [('time',aircraft_times[x]),
-                            ('grid_latitude',aircraft_rot_lats[x]),
-                            ('grid_longitude',aircraft_rot_lons[x])]
-
-        elif model == 'NAME':
-            #TODO: Can this line be generalised?
-            if not np.isnan(aircraft_lats[x]) or not np.isnan(aircraft_lons[x]):
-            
+            elif model == 'NAME':           
                 sample_point = [('time',aircraft_times[x]),
                                 ('latitude',aircraft_lats[x]),
                                 ('longitude',aircraft_lons[x])]
 
-        # Interpolate the data point and add it to the temporary list
-        interpolated_cube = cube.interpolate(sample_point,iris.analysis.Linear())
-        temp_cubes.append(interpolated_cube)
+            # Interpolate the data point and add it to the temporary list
+            interpolated_cube = cube.interpolate(sample_point,iris.analysis.Linear())
+            temp_cubes.append(interpolated_cube)
 
-    # Create a Cube List from the temporary list, merge the cubes and add them to the overall Cube List.
-    temp_cubes = iris.cube.CubeList(temp_cubes)
-    merged_cube = temp_cubes.merge()
+        # Create a Cube List from the temporary list, merge the cubes and add them to the overall Cube List.
+        temp_cubes = iris.cube.CubeList(temp_cubes)
+        merged_cube = temp_cubes.merge()
 
-    if count == 0 :
-        column_cubes = merged_cube
-    else :
-        column_cubes = column_cubes + merged_cube
-    count += 1
+        if count == 0 :
+            column_cubes = merged_cube
+        else :
+            column_cubes = column_cubes + merged_cube
+        count += 1
 
     # Save the interpolated model data as a NetCDF file.
     column_cubes = iris.cube.CubeList(column_cubes)
@@ -512,28 +468,19 @@ def convert_track_data_to_csv(modeldir,flight_number,suite,track_cubes,track_csv
     df = pd.DataFrame()
 
     # Define a sample cube to extract the coordinate information from.
-    sample_cube = track_cubes.extract(iris.Constraint(name='TOTAL_PM25_CONCENTRATION'))[0]
+    sample_cube = track_cubes[0]
 
     # Process the time data.
     time_data = [x*3600 for x in sample_cube.coord('time').points.tolist()]
     datetime_data = [pd.to_datetime(x,unit='s') for x in time_data]
     df['Time / seconds since 1970-01-01 00:00:00 UTC'] = pd.Series(time_data,index=datetime_data)
-
-    # Process the coordinate data.
-    lat_data = sample_cube.coord('latitude').points.tolist()
-    lon_data = sample_cube.coord('longitude').points.tolist()
-    df['Latitude / degrees north'] = pd.Series(lat_data,index=datetime_data)
-    df['Longitude / degrees east'] = pd.Series(lon_data,index=datetime_data)    
-    alt_data = sample_cube.coord('level_height').points.tolist()
-    df['Altitude / m'] = pd.Series(alt_data,index=datetime_data)
-
-    # Process the PM2.5 data.
-    pm2p5_data = track_cubes.extract(iris.Constraint(name='TOTAL_PM25_CONCENTRATION'))[0].data[:].tolist()
-    df['PM2.5 / ug m-3'] = pd.Series(pm2p5_data,index=datetime_data)
-
-    other_data = False
-
-    if other_data:
+    
+    if model == 'AQUM':
+        # Process the rotated coordinate data.
+        lat_rot_data = sample_cube.coord('grid_latitude').points.tolist()
+        lon_rot_data = sample_cube.coord('grid_longitude').points.tolist()
+        lon_data,lat_data = iris.analysis.cartography.unrotate_pole(np.array(lon_rot_data),np.array(lat_rot_data),177.5,37.5)
+        
         # Process the wind data.
         xwind_data = track_cubes.extract(iris.Constraint(name='x_wind'))[0].data[:].tolist()
         ywind_data = track_cubes.extract(iris.Constraint(name='y_wind'))[0].data[:].tolist()
@@ -542,57 +489,83 @@ def convert_track_data_to_csv(modeldir,flight_number,suite,track_cubes,track_csv
         df['V Wind / m s-1'] = pd.Series(ywind_data,index=datetime_data)
         df['Wind Speed / m s-1'] = pd.Series(windspeed_data,index=datetime_data)
 
-        # Process the boundary layer height data.
-        blheight_data = track_cubes.extract(iris.Constraint(name='atmosphere_boundary_layer_thickness'))[0].data.tolist()
-        df['Boundary Layer Thickness / m'] = pd.Series(blheight_data,index=datetime_data)
+        # 2D array specifying conversion: 
+        # ["cube name", conversion factor (1 if no conversion needed), "CSV column name" (matching aircraft data file)]
+        datakey = [
+        ['atmosphere_boundary_layer_thickness', 1, 'Boundary Layer Thickness / m'],
+        ['air_pressure', 0.01, 'Air Pressure / hPa'],
+        ['air_temperature', 1, 'Air Temperature / K'],
+        ['specific_humidity', 1, 'Specific Humidity / kg kg-1'],
+        ['surface_air_pressure', 0.01, 'Surface Air Pressure / hPa'],
+        ['surface_temperature', 1, 'Surface Air Temperature / K'],
+        ['mass_fraction_of_nitrogen_monoxide_in_air', 1e9, 'NO / ppb'],
+        ['mass_fraction_of_nitrogen_monoxide_in_air', 1.248e9, 'NO / ug m-3'],
+        ['mass_fraction_of_nitrogen_dioxide_in_air', 1e9, 'NO2 / ppb'],
+        ['mass_fraction_of_nitrogen_dioxide_in_air', 1.913e9, 'NO2 / ug m-3'],
+        ['mass_fraction_of_ozone_in_air', 1e9, 'O3 / ppb'],
+        ['mass_fraction_of_ozone_in_air', 1.996e9, 'O3 / ug m-3'],
+        ['mass_fraction_of_sulfur_dioxide_expressed_as_sulfur_in_air', 1e9, 'SO2 / ppb'],
+        ['mass_fraction_of_sulfur_dioxide_expressed_as_sulfur_in_air', 2.661e9, 'SO2 / ug m-3'],
+        ['mass_fraction_of_carbon_monoxide_in_air', 1e9, 'CO / ppb'],
+        ['mass_fraction_of_carbon_monoxide_in_air', 1.165e9, 'CO / ug m-3'],
+        ['mass_concentration_of_pm2p5_dry_aerosol_in_air', 1, 'PM2.5 / ug m-3'],
+        ['mass_concentration_of_pm10_dry_aerosol_in_air', 1, 'PM10 / ug m-3']]
 
-        # Process the air pressure data.
-        airpressure_data = track_cubes.extract(iris.Constraint(name='air_pressure'))[0].data[:].tolist()
-        pressure_pa_to_hpa_conversion = 0.01
-        airpressure_data = [x*pressure_pa_to_hpa_conversion for x in airpressure_data]
-        df['Air Pressure / hPa'] = pd.Series(airpressure_data,index=datetime_data)
+    elif model == 'NAME':
+        # Process the coordinate data.
+        lat_data = sample_cube.coord('latitude').points.tolist()
+        lon_data = sample_cube.coord('longitude').points.tolist()
 
-        # Process the air temperature data.
-        airtemp_data = track_cubes.extract(iris.Constraint(name='air_temperature'))[0].data[:].tolist()
-        df['Air Temperature / K'] = pd.Series(airtemp_data,index=datetime_data)
+        # 2D array specifying conversion: 
+        # ["cube name", conversion factor (1 if no conversion needed), "CSV column name" (matching aircraft data file)]
+        datakey = [
+            ['TOTAL_PM25_CONCENTRATION', 1, 'PM2.5 / ug m-3']]
 
-        # Process the specific humidity data.
-        spechumidity_data = track_cubes.extract(iris.Constraint(name='specific_humidity'))[0].data[:].tolist()
-        df['Specific Humidity / kg kg-1'] = pd.Series(spechumidity_data,index=datetime_data)
+    # Continue to process the coordinate data.
+    df['Latitude / degrees north'] = pd.Series(lat_data,index=datetime_data)
+    df['Longitude / degrees east'] = pd.Series(lon_data,index=datetime_data)    
+    alt_data = sample_cube.coord('level_height').points.tolist()
+    df['Altitude / m'] = pd.Series(alt_data,index=datetime_data)
 
-        # Process the surface air pressure data.
-        surfaceairpressure_data = track_cubes.extract(iris.Constraint(name='surface_air_pressure'))[0].data.tolist()
-        pressure_pa_to_hpa_conversion = 0.01
-        surfaceairpressure_data = [x*pressure_pa_to_hpa_conversion for x in surfaceairpressure_data]
-        df['Surface Air Pressure / hPa'] = pd.Series(surfaceairpressure_data,index=datetime_data)
-
-        # Process the surface air temperature data.
-        surfaceairtemp_data = track_cubes.extract(iris.Constraint(name='surface_temperature'))[0].data.tolist()
-        df['Surface Air Temperature / K'] = pd.Series(surfaceairtemp_data,index=datetime_data)
-        
-        # Process the NO data.
-        no_data = track_cubes.extract(iris.Constraint(name='mass_fraction_of_nitrogen_monoxide_in_air'))[0].data[:].tolist()
-        kgkg_ppb_conversion  = 1e9
-        no_ppb_data = [x*kgkg_ppb_conversion for x in no_data]
-        df['NO / ppb'] = pd.Series(no_ppb_data,index=datetime_data)
-        no_kgkg_ugm3_conversion = 1.248e9
-        no_ugm3_data = [x*no_kgkg_ugm3_conversion for x in no_data]
-        df['NO / ug m-3'] = pd.Series(no_ugm3_data,index=datetime_data)
+    # Process the rest of the data from the datakeys.
+    for cube in datakey:
+        data = track_cubes.extract(iris.Constraint(name=cube[0]))[0].data.tolist()
+        conversion = cube[1]
+        converted_data = [x*conversion for x in data]
+        df[cube[2]] = pd.Series(converted_data,index=datetime_data)
 
     # Save the CSV file.
     df.to_csv(modeldir+flight_number+suite+'/'+track_csv_file)
 
 if __name__ == '__main__' :
 
-    # Define the flight information and data directory.
-    model            = 'AQUM'
-    aircraft         = 'MOASA'
-    flight_number    = 'M270'
-    suite            = ''
-    flight_date      = '20200915'
+    # Define the flight information and data directory. Something like:
+    # model            = 'AQUM'
+    # aircraft         = 'MOASA'
+    # flight_number    = 'M270'
+    # suite            = ''
+    # flight_date      = '20200915'
+    # aircraft_nc_file = 'clean_air_moasa_data_20200915_M270_v0'
+    # OR
+    # model            = 'NAME'
+    # aircraft         = 'FAAM'
+    # flight_number    = 'C110'
+    # suite            = '/mi-bd327'
+    # flight_date      = '20180629'
+    # aircraft_nc_file = 'core_faam_20180629_v004_r0_c110_1hz_with_PM25'
+
+    model            = 'NAME'
+    aircraft         = 'FAAM'
+    flight_number    = 'C110'
+    suite            = '/mi-bd327'
+    flight_date      = '20180629'
     aircraft_nc_file = 'core_faam_20180629_v004_r0_c110_1hz_with_PM25' #initial netCDF name
     modeldir         = '../Data_Files/Model/'
     obsdir           = '../Data_Files/Aircraft/'
+
+    # As processing column data can be intensive, you may want to only process cubes you're interested in. 
+    constraints      = [] # List of cube names, or empty list
+
     if aircraft == 'FAAM': 
         start_time = '071205' #required as FAAM stores time values from zero.
     elif aircraft == 'MOASA':
@@ -606,7 +579,7 @@ if __name__ == '__main__' :
         z_string = None
 
     # Define the model file names.
-    aircraft_csv_file     = flight_number + '_' + flight_date + '_Aircraft_Track_Data.csv'
+    aircraft_csv_file     = flight_number + '_' + flight_date + '_Aircraft_Track_DataTEST.csv'
     gridded_file          = flight_number + '_' + flight_date + '_Model_Gridded_Data.nc'
     filtered_gridded_file = flight_number + '_' + flight_date + '_Model_Gridded_Data_Filtered.nc'
     column_file           = flight_number + '_' + flight_date + '_Model_Column_Data.nc'
@@ -632,10 +605,10 @@ if __name__ == '__main__' :
     # Check whether the column interpolated model data exists and if not create the file.
     if not column_file in os.listdir(modeldir+flight_number+suite+'/') :
         print('Creating column interpolated model data for flight',flight_number)
-        process_column_model_data(modeldir,obsdir,flight_number,model,suite,flight_date,column_file,model_cubes,aircraft_csv_file)
+        process_column_model_data(modeldir,obsdir,flight_number,model,suite,flight_date,column_file,model_cubes,constraints,aircraft_csv_file)
     column_cubes = read_column_model_data(modeldir,flight_number,suite,column_file)
 
-"""    # Check whether the track interpolated model data exists and if not create the file.
+    # Check whether the track interpolated model data exists and if not create the file.
     if not track_file in os.listdir(modeldir+flight_number+suite+'/') :
         print('Creating track interpolated model data for flight',flight_number)
         process_track_model_data(modeldir,obsdir,flight_number,suite,flight_date,track_file,column_cubes,aircraft_csv_file)
@@ -644,4 +617,4 @@ if __name__ == '__main__' :
     # Process the track interpolated data further.
     if not track_csv_file in os.listdir(modeldir+flight_number+suite+'/') :
         print('Processing track interpolated model data for flight',flight_number)
-        convert_track_data_to_csv(modeldir,flight_number,suite,track_cubes,track_csv_file)"""
+        convert_track_data_to_csv(modeldir,flight_number,suite,track_cubes,track_csv_file)
