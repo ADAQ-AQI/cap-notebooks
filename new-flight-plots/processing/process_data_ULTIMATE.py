@@ -554,12 +554,12 @@ if __name__ == '__main__' :
     # flight_date      = '20180629'
     # aircraft_nc_file = 'core_faam_20180629_v004_r0_c110_1hz_with_PM25'
 
-    model            = 'NAME'
-    aircraft         = 'FAAM'
-    flight_number    = 'C110'
-    suite            = '/mi-bd327'
-    flight_date      = '20180629'
-    aircraft_nc_file = 'core_faam_20180629_v004_r0_c110_1hz_with_PM25' #initial netCDF name
+    model            = 'AQUM'
+    aircraft         = 'MOASA'
+    flight_number    = 'M270'
+    suite            = ''
+    flight_date      = '20200915'
+    aircraft_nc_file = 'clean_air_moasa_data_20200915_M270_v0' #initial netCDF name
     modeldir         = '../Data_Files/Model/'
     obsdir           = '../Data_Files/Aircraft/'
 
@@ -579,7 +579,7 @@ if __name__ == '__main__' :
         z_string = None
 
     # Define the model file names.
-    aircraft_csv_file     = flight_number + '_' + flight_date + '_Aircraft_Track_DataTEST.csv'
+    aircraft_csv_file     = flight_number + '_' + flight_date + '_Aircraft_Track_Data.csv'
     gridded_file          = flight_number + '_' + flight_date + '_Model_Gridded_Data.nc'
     filtered_gridded_file = flight_number + '_' + flight_date + '_Model_Gridded_Data_Filtered.nc'
     column_file           = flight_number + '_' + flight_date + '_Model_Column_Data.nc'
