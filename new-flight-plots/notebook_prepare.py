@@ -40,6 +40,9 @@ def species_dictionary(flight_number) :
     This information includes the species codes as used in the data files,
     labels to use for figure axes and unit conversions to convert between
     different units.
+
+    Args:
+        flight_number: code describing a specific flight.
     """
     if flight_number in {'C110'}:
         species_dict = {'PM2.5' : {'code':  'PM2.5 / ug m-3',
@@ -83,6 +86,10 @@ def read_data(datadir,datafile) :
 
     """
     Read the data file into a data frame.
+
+    Args:
+        datadir: string defining data location path.
+        datafile: string defining data file name.
     """
 
     df = pd.read_csv(datadir+datafile,index_col=0)
@@ -95,6 +102,11 @@ def combine_data(setup,code) :
     """
     Combine the model and aircraft data into a single data frame.
     Remove any model data points without corresponding observations.
+
+    Args:
+        setup: multiple parameters defining setup configuration, 
+                the return values of function setup_notebook.
+        code: string defining the pollutant species, i.e. 'PM2.5 / ug m-3'.
     """
 
     time_filter_flag, start_time, end_time, data = setup[:4]
@@ -154,11 +166,19 @@ def combine_data(setup,code) :
 
     return df
 
-def resample_data(df,resample_time,avg_method,min_method,max_method, m_flag) :
+def resample_data(df,resample_time,avg_method,min_method,max_method,m_flag) :
 
     """
     Resample onto the chosen timestep.
     Calculate average, minimum and maximum values.
+
+    Args:
+        df: Panda dataframe containing the aircraft and model (if used) data.
+        resample_time: Timestep on which to resample the data.
+        avg_method: Method for finding average values, 'mean' or 'median'.
+        min_method: Method for finding min values, '0' (full range) or '0.25' (interquartile range).
+        max_method: Method for finding max values, '1' (full range) or '0.75' (interquartile range).
+        m_flag: Boolean specifying if model data is also being plotted.
     """
 
     # Resample the data frame.
@@ -191,9 +211,18 @@ def resample_data(df,resample_time,avg_method,min_method,max_method, m_flag) :
 
     return new_df
 
-def bin_data(dimension, df, avg_method, min_method, max_method, bin, m_flag):
+def bin_data(dimension,df,avg_method,min_method,max_method,bin,m_flag) :
     """
     Divide the data into bins based on var_data and calculate averages and ranges of the data.
+
+    Args:
+        dimension: Dimension along which data is binned, 'Altitude', 'Latitude' or 'Longitude'.
+        df: Panda dataframe containing the aircraft and model (if used) data.
+        avg_method: Method for finding average values, 'mean' or 'median'.
+        min_method: Method for finding min values, '0' (full range) or '0.25' (interquartile range).
+        max_method: Method for finding max values, '1' (full range) or '0.75' (interquartile range).
+        bin: Number defining the bin width.
+        m_flag: Boolean specifying if model data is also being plotted.
     """
     # Read the data from the data frame.
     var_data = df[dimension][:].tolist()
@@ -258,10 +287,13 @@ def bin_data(dimension, df, avg_method, min_method, max_method, bin, m_flag):
         start += bin
     return data
 
-def read_data_values(df, m_flag) :
-
+def read_data_values(df,m_flag) :
     """
     Read the aircraft and model data from the data frame.
+
+    Args:
+        df: Panda dataframe containing the aircraft and model (if used) data.
+        m_flag: Boolean specifying if model data is also being plotted.
     """
     values = {}
 
@@ -286,6 +318,10 @@ def resample_wind_data(df,resample_time) :
     """
     Resample onto the chosen timestep.
     Calculate average, minimum and maximum values.
+
+    Args:
+        df: Panda dataframe containing the aircraft and model (if used) data.
+        resample_time: Timestep on which to resample the data.
     """
 
     m_u_data = df['Model_U_Wind'][:].tolist()
@@ -307,6 +343,9 @@ def read_data_values_wind(df) :
 
     """
     Read the wind data from the data frame.
+
+    Args:
+        df: Panda dataframe containing the aircraft and model (if used) data.
     """
 
     m_uwind = df['Model_U_Wind'][:]
@@ -315,9 +354,18 @@ def read_data_values_wind(df) :
     return m_uwind,m_vwind
 
 def read_cross_section(datadir,datafile,column_key,unit_conv,time_filter_flag,start_time,end_time,flight_date) :
-
     """
     Read the cross section data from the file.
+
+    Args:
+        datadir: String defining data location path.
+        datafile: String defining data file name.
+        column_key: String defining column heading of pollutant species data.
+        unit_conv: Number defining unit conversion factor of pollutant data.
+        time_filter_flag: Boolean defining if time interval is subset.
+        start_time: start time of flight, or subset period.
+        end_time: end time of flight, or subset period.
+        flight_date: Date of flight.
     """
 
     f = Dataset(datadir+datafile,mode='r',format='NETCDF4')
@@ -366,6 +414,11 @@ def setup_map(fig,n,m_flag) :
 
     """
     Set up the map.
+
+    Args:
+        fig: matplotlib figure.
+        n: integer defining the subfigure index.
+        m_flag: Boolean specifying if model data is also being plotted.
     """
     if(m_flag): i = 3
     else: i = 1
@@ -385,7 +438,11 @@ def setup_map(fig,n,m_flag) :
 def calculate_time_markers(time_data) :
 
     """
-    Calculate time markers for each 15 minute interval.
+    Calculate time markers for each 15 minute interval, for timeseries.
+    
+    Args:
+        time_data: Array of the time data 
+                   https://pandas.pydata.org/docs/reference/api/pandas.DatetimeIndex.html
     """
 
     start_time  = time_data[0]
@@ -434,11 +491,8 @@ def setup_notebook(flight_number: str, m_flag: boolean) :
     """Set up flight info, file paths and other options for each notebook.
 
     Args:
-        flight_number: code describing a specific flight
-        m_flag: If model data is also being plotted
-
-    Returns:
-        _type_: _description_
+        flight_number: code describing a specific flight.
+        m_flag: Boolean specifying if model data is also being plotted.
     """
 
     # Extract the flight information from the dictionary.
