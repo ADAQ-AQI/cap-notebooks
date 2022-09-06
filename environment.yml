@@ -1,0 +1,30 @@
+name: cap-notebooks
+channels:
+  - conda-main
+  - conda-r
+  - conda-agnostic
+  - conda-forge
+dependencies:
+  - python=3.8
+  - pip
+  - ipython
+  - ipykernel
+  - hvplot
+  - iris
+  - xarray
+  - pandas
+  - geopandas
+  - shapely=1.7.1
+  - numpy
+  - yaml
+  - pooch #for messing around
+  - jupyter_bokeh
+  - cftime=1.0.4 #To convert to pd datetime.. may have to move to clean_air_project
+  # clean-air-project framework code and dependencies
+  - proj>=8.0.0
+  - pip:
+      # Use the current master branch until we've implemented proper releases to artifactory/pypi
+      - https://github.com/ADAQ-AQI/clean-air-project/archive/master.zip
+
+      # For development: 
+      #- -e ../clean-air-project
